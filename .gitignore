@@ -2,3 +2,6 @@ utils/
 main.dSYM/
 *.o
 main
+key
+key.pub
+zadanko1
