@@ -44,7 +44,7 @@ const char* STATIC_RESPONSE_SUCHA_KREWETA =
 
 
 #define INPUT_BUFFER_SIZE 4096
-#define MAX_EVENTS 10
+#define MAX_EVENTS 1024
 
 void findPath(const char* request, char* target) {
     while(*(request)++ != ' ') {}
@@ -70,6 +70,9 @@ const char* pseudoRouter(const char* requestedPath)
 int main(void) {
     // Tu trzymamy przychodzące dane od przeglądarki.
     char inputBuffer[INPUT_BUFFER_SIZE + 1];
+    // Tu trzymamy dane sciezki w przegladarce (endpoint)
+    char pathBuffer[1024];
+    char ipBuffer[16];
 
     // Tu tworzymy socket servera IPv4.
     int server = socket(AF_INET, SOCK_STREAM, 0);
@@ -173,71 +176,55 @@ int main(void) {
                 if (epoll_ctl(epollfd, EPOLL_CTL_ADD, client, &ev) == -1) {
                     printf("epoll_ctl error");
                     close(client);
-                    continue;
                 }
 
-                char ipBuffer[16];
                 printf("Accepted connection from %s:%d\n",
                        inet_ntop(AF_INET, &clientData.sin_addr.s_addr, ipBuffer, 16), ntohs(clientData.sin_port));
             } else {
                 // Requesty klientow
                 int client = events[i].data.fd;
-                int done = 0;
+                ssize_t received = recv(client, inputBuffer, INPUT_BUFFER_SIZE, 0);
 
-                while (1) {
-                    ssize_t received = recv(client, inputBuffer, INPUT_BUFFER_SIZE, 0);
-                    if (received == -1) {
-                        if (errno != EAGAIN) {
-                            perror("recv");
-                            done = 1;
-                        }
-                        break;
-                    } else if (received == 0) {
-                        done = 1;
-                        break;
+                if(received == -1)
+                {
+                    if(errno != EWOULDBLOCK && errno != EAGAIN)
+                    {
+                        printf("Error occured on receiving, closing connection %d.\n", i);
+                        close(client);
                     }
-
+                    continue;
+                } else {
                     inputBuffer[received] = 0x00;
-                    char pathBuffer[1024];
-
                     findPath(inputBuffer, pathBuffer);
+
                     printf("Requested path: %s\n", pathBuffer);
 
                     const char *response = pseudoRouter(pathBuffer);
 
                     if (response == NULL) {
-                        done = 1;
-                        break;
-                    }
+                        shutdown(client, SHUT_RDWR);
+                        close(client);
+                    } else {
+                        ssize_t sent = send(client, response, strlen(response), MSG_NOSIGNAL);
 
-                    size_t sent = 0;
-                    size_t toSend = strlen(response);
-
-                    while (sent < toSend) {
-                        ssize_t s = send(client, response + sent, toSend - sent, 0);
-                        if (s == -1) {
-                            if (errno != EAGAIN) {
-                                perror("send");
-                                done = 1;
+                        if (sent == -1) {
+                            if(errno != EWOULDBLOCK && errno != EAGAIN)
+                            {
+                                printf("Error occured on sending, closing connection %d.\n", i);
+                                close(client);
                             }
-                            break;
+                            continue;
                         }
-                        sent += s;
+                        printf("Sent %zu bytes to client.\n", sent);
+                        shutdown(client, SHUT_RDWR);
+                        close(client);
+                        printf("Closed connection on descriptor %d\n\n", client);
                     }
-
-                    printf("Sent %zu bytes to client.\n", sent);
-                }
-
-                if (done) {
-                    printf("Closed connection on descriptor %d\n\n", client);
-                    close(client);
-                    break;
                 }
             }
         }
     }
 
     close(server);
-
     return 0;
 }
