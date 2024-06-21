@@ -13,7 +13,7 @@ const char* STATIC_RESPONSE =
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=UTF-8\r\n"
         "Content-Length: 155\r\n"
-        "Server: KNURCAMP SERVER 2137\r\n"
+        "Server: SERVER 2137\r\n"
         "Accept-Ranges: bytes\r\n"
         "Connection: close\r\n"
         "\r\n"
@@ -26,19 +26,19 @@ const char* STATIC_RESPONSE =
         "  </body>\r\n"
         "</html>";
 
-const char* STATIC_RESPONSE_SUCHA_KREWETA =
+const char* STATIC_RESPONSE_OTHER_ENDPOINT =
         "HTTP/1.1 200 OK\r\n"
         "Content-Type: text/html; charset=UTF-8\r\n"
-        "Server: KNURCAMP SERVER 2137\r\n"
+        "Server: SERVER 2137\r\n"
         "Accept-Ranges: bytes\r\n"
         "Connection: close\r\n"
         "\r\n"
         "<html>\r\n"
         "  <head>\r\n"
-        "    <title>Suchy Kreweta</title>\r\n"
+        "    <title>some other page</title>\r\n"
         "  </head>\r\n"
         "  <body>\r\n"
-        "    <p>Hello this is suchy kreweta.</p>\r\n"
+        "    <p>Hello this is a different page.</p>\r\n"
         "  </body>\r\n"
         "</html>";
 
@@ -56,8 +56,8 @@ void findPath(const char* request, char* target) {
 
 const char* pseudoRouter(const char* requestedPath)
 {
-    if(strcmp("/suchyKreweta", requestedPath) == 0) {
-        return STATIC_RESPONSE_SUCHA_KREWETA;
+    if(strcmp("/other", requestedPath) == 0) {
+        return STATIC_RESPONSE_OTHER_ENDPOINT;
     }
     else if(strcmp("/vanish", requestedPath) == 0) {
         return NULL;
@@ -80,14 +80,14 @@ int main(void) {
     // Tu obsługujemy błąd w tworzeniu socketa servera.
     if(server == -1)
     {
-        printf("Nie udalo sie stworzyc socketa aha12\n");
+        printf("Error creating a socket server.\n");
         exit(-1);
     }
 
     int nonBlockServ = fcntl(server, F_SETFL, O_NONBLOCK);
 
     if (nonBlockServ == -1) {
-        printf("nie udalo sie stworzyc non-blocking socketa (serwer)");
+        printf("Error creating a non-blocking socket server.");
         exit(EXIT_FAILURE);
     }
 
@@ -104,7 +104,7 @@ int main(void) {
     // WAŻNE żeby to obsłużyć bo ta operacja często może sie nie udać.
     if(ret != 0)
     {
-        printf("Dupa nie dziala aha ok\n");
+        printf("Error binding server socket.\n");
         exit(-1);
     }
 
@@ -116,7 +116,7 @@ int main(void) {
     // Obsługa błędu przy ustawianiu stanu socketa.
     if(ret != 0)
     {
-        printf("Dupa nie udalo sie nasluchiwac na komendzie w plocku\n");
+        printf("Error listening to a server socket.\n");
         exit(-1);
     }
 
@@ -126,7 +126,7 @@ int main(void) {
     int epollfd = epoll_create1(0);
 
     if (epollfd == -1) {
-        printf("Dupa nie udało sie stworzyc instancji epoll\n");
+        printf("Error creating epoll instance.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -134,7 +134,7 @@ int main(void) {
     ev.data.fd = server;
 
     if (epoll_ctl(epollfd, EPOLL_CTL_ADD, server, &ev) == -1) {
-        printf("Dupa nie udalo sie dodac entry do listy zainteresowan epolskich descriptorow");
+        printf("Error adding an entry to a list of intrests of epoll file descriptors.");
         exit(EXIT_FAILURE);
     }
 
@@ -144,7 +144,7 @@ int main(void) {
         int nfds = epoll_wait(epollfd, events, MAX_EVENTS, -1);
 
         if (nfds == -1) {
-            printf("Dupa error epoll_wait");
+            printf("Error epoll_wait");
             exit(EXIT_FAILURE);
         }
 
@@ -159,14 +159,14 @@ int main(void) {
                 int client = accept(server, (struct sockaddr *) &clientData, &size);
 
                 if (client == -1) {
-                    printf("Nie udało się zaakceptować połączenia (accept)\n");
+                    printf("Error (accept) client.\n");
                     continue;
                 }
 
                 int nonBlockClient = fcntl(client, F_SETFL, O_NONBLOCK);
 
                 if (nonBlockClient == -1) {
-                    printf("nie udalo sie stworzyc non-blocking socketa (client)");
+                    printf("Error creating a non-blocking socket (client)");
                     close(client);
                     continue;
                 }
